@@ -7,10 +7,20 @@ def json2markdown(json_dir, markdown_dir):
     para_before = ''
     before_patt = ['[a-z]', ',', '，', '-', '\(', '\)', '（', '）']
     after_patt = ['[a-z]', '·', '\(', '\)', '（', '）']
-    js = json_dir 
+    js = json_dir
     f = json.load(open(js))
     md = markdown_dir
+    current_page = None
     for i, section in f.items():
+        # 从 section key 中提取页码（格式: "pn-type"）
+        try:
+            page_num = int(i.split('-')[0])
+        except (ValueError, IndexError):
+            page_num = 0
+        if page_num != current_page:
+            current_page = page_num
+            pdf.append('## 当前页数:{}\n'.format(current_page))
+
         text = section['text']
         type = section['type']
         if isinstance(text, dict):
@@ -37,7 +47,6 @@ def json2markdown(json_dir, markdown_dir):
                     para_before = para
             else:
                 para_before = para
-    # print(pdf, flush=True)
     for p in pdf:
         print(p, file=open(md, 'a'))
     return '\n'.join(pdf)

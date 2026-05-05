@@ -205,7 +205,7 @@ class MilvusClient:
         valid_ids = [result['file_id'] for result in res]
         return valid_ids
 
-    def seperate_list(self, ls: List[int]) -> List[List[int]]:
+    def separate_list(self, ls: List[int]) -> List[List[int]]:
         lists = []
         ls1 = [ls[0]]
         for i in range(1, len(ls)):
@@ -221,18 +221,16 @@ class MilvusClient:
     def process_group(self, group):
         new_cands = []
         group.sort(key=lambda x: int(x.metadata['chunk_id'].split('_')[-1]))
-        id_set = set()
+        id_lists = []
         file_id = group[0].metadata['file_id']
         file_name = group[0].metadata['file_name']
         group_scores_map = {}
         # 先找出该文件所有需要搜索的chunk_id
-        cand_chunks_set = set()  # 使用集合而不是列表
+        cand_chunks_set = set()
         for cand_doc in group:
             current_chunk_id = int(cand_doc.metadata['chunk_id'].split('_')[-1])
             group_scores_map[current_chunk_id] = cand_doc.metadata['score']
-            # 使用 set comprehension 一次性生成区间内所有可能的 chunk_id
             chunk_ids = {file_id + '_' + str(i) for i in range(current_chunk_id - 200, current_chunk_id + 200)}
-            # 更新 cand_chunks_set 集合
             cand_chunks_set.update(chunk_ids)
 
         cand_chunks = list(cand_chunks_set)
@@ -242,6 +240,7 @@ class MilvusClient:
 
         group_file_chunk_num = list(group_chunk_map.keys())
         for cand_doc in group:
+            id_set = set()
             current_chunk_id = int(cand_doc.metadata['chunk_id'].split('_')[-1])
             doc = copy.deepcopy(cand_doc)
             id_set.add(current_chunk_id)
@@ -252,6 +251,8 @@ class MilvusClient:
                     if expand_index in group_file_chunk_num:
                         merge_content = group_chunk_map[expand_index]
                         if docs_len + len(merge_content) > CHUNK_SIZE:
+                            id_list = sorted(list(id_set))
+                            id_lists.append(id_list)
                             break_flag = True
                             break
                         else:
@@ -259,9 +260,11 @@ class MilvusClient:
                             id_set.add(expand_index)
                 if break_flag:
                     break
+            else:
+                id_list = sorted(list(id_set))
+                if id_list not in id_lists:
+                    id_lists.append(id_list)
 
-        id_list = sorted(list(id_set))
-        id_lists = self.seperate_list(id_list)
         for id_seq in id_lists:
             for id in id_seq:
                 if id == id_seq[0]:

@@ -116,27 +116,36 @@ def safe_get(req: Request, attr: str, default=None):
 
 
 def truncate_filename(filename, max_length=200):
-    # 获取文件名后缀
     file_ext = os.path.splitext(filename)[1]
-
-    # 获取不带后缀的文件名
     file_name_no_ext = os.path.splitext(filename)[0]
-
-    # 计算文件名长度，注意中文字符
     filename_length = len(filename.encode('utf-8'))
 
-    # 如果文件名长度超过最大长度限制
+    if filename_length <= max_length:
+        return filename
+
+    debug_logger.warning("文件名长度超过最大长度限制，将截取文件名")
+    timestamp = str(int(time.time()))
+    suffix = "_" + timestamp + file_ext
+    suffix_bytes = len(suffix.encode('utf-8'))
+
+    # 如果后缀本身就超长，截断扩展名
+    if suffix_bytes >= max_length:
+        safe_ext_bytes = max(max_length // 2, 10)
+        file_ext = file_ext.encode('utf-8')[:safe_ext_bytes].decode('utf-8', errors='ignore')
+        suffix = "_" + timestamp + file_ext
+        suffix_bytes = len(suffix.encode('utf-8'))
+
+    # 逐步截断文件名直到满足长度要求，或文件名已截空
+    while filename_length > max_length and file_name_no_ext:
+        file_name_no_ext = file_name_no_ext[:-4]
+        new_filename = file_name_no_ext + suffix
+        filename_length = len(new_filename.encode('utf-8'))
+
+    # 如果仍超长（极端情况），用纯时间戳作为文件名
     if filename_length > max_length:
-        debug_logger.warning("文件名长度超过最大长度限制，将截取文件名")
-        # 生成一个时间戳标记
-        timestamp = str(int(time.time()))
-        # 截取文件名
-        while filename_length > max_length:
-            file_name_no_ext = file_name_no_ext[:-4]
-            new_filename = file_name_no_ext + "_" + timestamp + file_ext
-            filename_length = len(new_filename.encode('utf-8'))
+        new_filename = timestamp + file_ext
     else:
-        new_filename = filename
+        new_filename = file_name_no_ext + suffix
 
     return new_filename
 
@@ -228,18 +237,30 @@ def num_tokens(text: str, model: str = 'gpt-3.5-turbo-0613') -> int:
     return len(encoding.encode(text, disallowed_special=()))
 
 
-embedding_tokenizer = AutoTokenizer.from_pretrained(LOCAL_EMBED_PATH, local_files_only=True)
-rerank_tokenizer = AutoTokenizer.from_pretrained(LOCAL_RERANK_PATH, local_files_only=True)
+_embedding_tokenizer = None
+_rerank_tokenizer = None
+
+
+def _get_embedding_tokenizer():
+    global _embedding_tokenizer
+    if _embedding_tokenizer is None:
+        _embedding_tokenizer = AutoTokenizer.from_pretrained(LOCAL_EMBED_PATH, local_files_only=True)
+    return _embedding_tokenizer
+
+
+def _get_rerank_tokenizer():
+    global _rerank_tokenizer
+    if _rerank_tokenizer is None:
+        _rerank_tokenizer = AutoTokenizer.from_pretrained(LOCAL_RERANK_PATH, local_files_only=True)
+    return _rerank_tokenizer
 
 
 def num_tokens_embed(text: str) -> int:
-    """Return the number of tokens in a string."""
-    return len(embedding_tokenizer.encode(text, add_special_tokens=True))
+    return len(_get_embedding_tokenizer().encode(text, add_special_tokens=True))
 
 
 def num_tokens_rerank(text: str) -> int:
-    """Return the number of tokens in a string."""
-    return len(rerank_tokenizer.encode(text, add_special_tokens=True))
+    return len(_get_rerank_tokenizer().encode(text, add_special_tokens=True))
 
 
 def shorten_data(data):

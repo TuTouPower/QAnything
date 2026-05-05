@@ -698,6 +698,7 @@ class LocalDocQA:
                 last_return_time = time.perf_counter()
                 time_record['llm_completed'] = round(last_return_time - t1, 2) - time_record['llm_first_return']
                 history[-1][1] = acc_resp
+                response["result"] = f"data: {json.dumps({'answer': acc_resp}, ensure_ascii=False)}"
                 if total_images_number != 0:  # 如果有图片，需要处理回答带图的情况
                     docs_with_images = [doc for doc in source_documents if doc.metadata.get('images', [])]
                     time1 = time.perf_counter()

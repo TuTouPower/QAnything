@@ -672,7 +672,7 @@ async def local_doc_chat(req: request):
         need_web_search = llm_setting.get('networking', False)
         api_base = llm_setting.get('api_base', '')
         api_key = llm_setting.get('api_key', 'ollama')
-        api_context_length = llm_setting.get('api_context_length', 4096)
+        api_context_length = llm_setting.get('api_context_length', 32768)
         top_p = llm_setting.get('top_p', 0.99)
         temperature = llm_setting.get('temperature', 0.5)
         top_k = llm_setting.get('top_k', VECTOR_SEARCH_TOP_K)
@@ -691,7 +691,7 @@ async def local_doc_chat(req: request):
         api_base = api_base.replace('0.0.0.0', GATEWAY_IP).replace('127.0.0.1', GATEWAY_IP).replace('localhost',
                                                                                                     GATEWAY_IP)
         api_key = safe_get(req, 'api_key', 'ollama')
-        api_context_length = safe_get(req, 'api_context_length', 4096)
+        api_context_length = safe_get(req, 'api_context_length', 32768)
         top_p = safe_get(req, 'top_p', 0.99)
         temperature = safe_get(req, 'temperature', 0.5)
         top_k = safe_get(req, 'top_k', VECTOR_SEARCH_TOP_K)
@@ -1461,3 +1461,13 @@ async def get_file_base64(req: request):
     with open(file_location, "rb") as f:
         file_base64 = base64.b64encode(f.read()).decode()
     return sanic_json({"code": 200, "msg": "success", "file_base64": file_base64})
+
+
+async def get_tags(req: request):
+    """前端调用此接口获取标签，返回空标签列表（待实现完整标签功能）"""
+    return sanic_json({"code": 200, "msg": "success", "tags": []})
+
+
+async def update_tags(req: request):
+    """前端调用此接口更新标签（待实现完整标签功能）"""
+    return sanic_json({"code": 200, "msg": "success"})

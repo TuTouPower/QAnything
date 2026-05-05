@@ -259,9 +259,6 @@ class KnowledgeBaseManager:
             "CREATE INDEX index_bot_id ON QaLogs (bot_id)",
             "CREATE INDEX index_query ON QaLogs (query)",
             "CREATE INDEX index_timestamp ON QaLogs (timestamp)",
-            # 如果没有的话，给QanythingBot添加一列：llm_setting VARCHAR(512)
-            "ALTER TABLE QanythingBot ADD COLUMN llm_setting VARCHAR(512) DEFAULT '{}'",
-            "ALTER TABLE QanythingBot DROP COLUMN model",
         ]
 
         for query in index_queries:
@@ -269,14 +266,36 @@ class KnowledgeBaseManager:
                 self.execute_query_(query, (), commit=True)
                 debug_logger.info(f"Index created successfully: {query}")
             except mysql.connector.Error as err:
-                if err.errno == 1061:  # 重复键错误
+                if err.errno == 1061:
                     debug_logger.info(f"Index already exists (this is okay): {query}")
-                elif err.errno == 1060:  # 已存在的列无需创建
-                    debug_logger.info(f"Column already exists (this is okay): {query}")
-                elif err.errno == 1091:  # 已经删除的列无需删除
-                    debug_logger.info(f"Column already deleted (this is okay): {query}")
                 else:
                     debug_logger.error(f"Error creating index: {err}")
+
+        # 兼容旧版本：添加 llm_setting 列（如不存在）、删除 model 列（如存在）
+        existing_columns = set()
+        try:
+            result = self.execute_query_(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QanythingBot'",
+                (), fetch=True
+            )
+            if result:
+                existing_columns = {row[0] for row in result}
+        except Exception:
+            pass
+
+        if 'llm_setting' not in existing_columns:
+            try:
+                self.execute_query_("ALTER TABLE QanythingBot ADD COLUMN llm_setting VARCHAR(512) DEFAULT '{}'", (), commit=True)
+                debug_logger.info("Added llm_setting column to QanythingBot")
+            except mysql.connector.Error as err:
+                debug_logger.info(f"llm_setting column handling: {err}")
+
+        if 'model' in existing_columns:
+            try:
+                self.execute_query_("ALTER TABLE QanythingBot DROP COLUMN model", (), commit=True)
+                debug_logger.info("Dropped legacy model column from QanythingBot")
+            except mysql.connector.Error as err:
+                debug_logger.info(f"model column handling: {err}")
 
         debug_logger.info("All tables and indexes checked/created successfully.")
 

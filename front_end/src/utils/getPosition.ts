@@ -60,7 +60,7 @@ var getPosition = {
       name,
       rstyle = /^(number|string)$/;
     var rname = /^(content|outline|outlineWidth)$/; //Opera: content; IE8:outline && outlineWidth
-    var cssText = [],
+    var cssText: any = [],
       sStyle = elem.style;
 
     let val;
@@ -85,9 +85,9 @@ var getPosition = {
 
   // 向页头插入样式
   _addHeadStyle: function (content) {
-    var style = this._style[document];
+    var style = this._style[document as any];
     if (!style) {
-      style = this._style[document] = document.createElement('style');
+      style = this._style[document as any] = document.createElement('style');
       document.getElementsByTagName('head')[0].appendChild(style);
     }
     (style.styleSheet && (style.styleSheet.cssText += content)) ||

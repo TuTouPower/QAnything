@@ -416,24 +416,21 @@ class Recognizer(object):
 
     def __call__(self, image_list, thr=0.4, batch_size=16):
         res = []
-        imgs = []
-        for i in range(len(image_list)):
-            if not isinstance(image_list[i], np.ndarray):
-                imgs.append(np.array(image_list[i]))
-            else:
-                imgs.append(image_list[i])
 
-        batch_loop_cnt = math.ceil(float(len(imgs)) / batch_size)
+        batch_loop_cnt = math.ceil(float(len(image_list)) / batch_size)
         for i in range(batch_loop_cnt):
             start_index = i * batch_size
-            end_index = min((i + 1) * batch_size, len(imgs))
-            batch_image_list = imgs[start_index:end_index]
+            end_index = min((i + 1) * batch_size, len(image_list))
+            batch_image_list = []
+            for j in range(start_index, end_index):
+                img = image_list[j]
+                if not isinstance(img, np.ndarray):
+                    img = np.array(img)
+                batch_image_list.append(img)
             inputs = self.preprocess(batch_image_list)
-            print("preprocess")
             for ins in inputs:
                 bb = self.postprocess(
                     self.ort_sess.run(None, {k: v for k, v in ins.items() if k in self.input_names})[0], ins, thr)
-                # print(f"page_rec_res: {bb}")
                 res.append(bb)
 
         return res

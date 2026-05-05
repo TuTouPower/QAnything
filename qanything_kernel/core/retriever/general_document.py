@@ -10,6 +10,7 @@ from langchain_community.document_loaders import UnstructuredFileLoader, TextLoa
 from langchain_community.document_loaders import UnstructuredWordDocumentLoader
 from langchain_community.document_loaders import UnstructuredEmailLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders import UnstructuredHTMLLoader
 from qanything_kernel.utils.loader import UnstructuredPaddlePDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from qanything_kernel.utils.loader.csv_loader import CSVLoader
@@ -448,8 +449,11 @@ class LocalFileForInsert:
         elif self.file_path.lower().endswith(".csv"):
             loader = CSVLoader(self.file_path, autodetect_encoding=True, csv_args={"delimiter": ",", "quotechar": '"'})
             docs = loader.load()
+        elif self.file_path.lower().endswith((".html", ".htm")):
+            loader = UnstructuredHTMLLoader(self.file_path, strategy="fast")
+            docs = loader.load()
         else:
-            raise TypeError("文件类型不支持，目前仅支持：[md,txt,pdf,jpg,png,jpeg,docx,xlsx,pptx,eml,csv]")
+            raise TypeError("文件类型不支持，目前仅支持：[md,txt,pdf,jpg,png,jpeg,docx,xlsx,pptx,eml,csv,html,htm]")
         self.inject_metadata(docs)
 
     def inject_metadata(self, docs: List[Document]):
@@ -473,6 +477,10 @@ class LocalFileForInsert:
             new_doc.metadata["page_id"] = doc.metadata.get("page_id", 0)
             kb_name = self.mysql_client.get_knowledge_base_name([self.kb_id])[0][2]
             metadata_infos = {"知识库名": kb_name, '文件名': self.file_name}
+            # 如果 title_lst 有内容，第一个元素可能是 sheet 名称（Excel）或章节标题
+            title_lst = doc.metadata.get("title_lst", [])
+            if title_lst:
+                metadata_infos['章节'] = title_lst[0]
             new_doc.metadata['headers'] = metadata_infos
 
             if 'faq_dict' not in doc.metadata:

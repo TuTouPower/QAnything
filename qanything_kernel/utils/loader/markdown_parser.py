@@ -283,8 +283,24 @@ def convert_node_to_document(node_lists):
 def convert_markdown_to_langchaindoc(md_file):
     doc_json = parse_markdown_mistune(md_file)
     node_lists = _convert_to_node_lists_dfs([doc_json])
-    # print("node_lists:", node_lists)
     doc_lst = convert_node_to_document(node_lists)
+    # 提取真实页码：扫描 当前页数:N 标记，传播到后续文档
+    current_page = 0
+    marker_indices = []
+    for idx, doc in enumerate(doc_lst):
+        lines = doc.page_content.split('\n')
+        for line in lines:
+            m = re.match(r'^#+ 当前页数:(\d+)$', line)
+            if m:
+                current_page = int(m.group(1))
+                marker_indices.append(idx)
+                break
+        doc.metadata['page_id'] = current_page
+    # 移除纯页码标记文档
+    for idx in reversed(marker_indices):
+        content = doc_lst[idx].page_content.strip()
+        if re.match(r'^#+ 当前页数:\d+$', content):
+            doc_lst.pop(idx)
     return doc_lst
 
 
